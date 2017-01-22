@@ -92,9 +92,11 @@ assert("DFI.unWrap",identical(DFI.unWrap(DFIobj1),DF))
 assert("DFI.as.data.frame",identical(DFI.unWrap(DFIobj1),DF))
 assert("DFI.as.matrix",identical(as.matrix(DFI.unWrap(DFIobj1)),as.matrix(DF)))
 
+# check on the structure
 for(idxName in DFI.indexes(DFIobj1)){
   expected <- list(idxs=order(DF[[idxName]],na.last=NA),
-                   sorted=DF[[idxName]][order(DF[[idxName]],na.last=NA)])
+                   sorted=DF[[idxName]][order(DF[[idxName]],na.last=NA)],
+                   naidxs=which(is.na(DF[[idxName]])))
   assert(paste("DFI.getIndex",idxName,"check",sep=" "), identical(DFI.getIndex(DFIobj1,idxName),expected))
 }
 
@@ -102,22 +104,27 @@ for(idxName in DFI.indexes(DFIobj1)){
 # create a lot of expressions and put them in a list
 allFilterExpr <- list(
   INT.eq7 = EQ("INT",7),
+  INT.noteq7 = NOT(EQ("INT",7)),
   INT.eqNA = EQ("INT",NA),
   INT.rg4_8 = RG("INT",4,8),
   INT.rgNA_8 = RG("INT",NA,8),
   INT.rg4_NA = RG("INT",4,NA),
   INT.in3_7_9 = IN("INT",c(3,7,9)),
   INT.in3_NA_9 = IN("INT",c(3,NA,9)),
+  INT.eqna = EQNA("INT"),
   
   DBL.eq0.1 = EQ("DBL",0.1),
+  DBL.noteq0.1 = NOT(EQ("DBL",0.1)),
   DBL.eqNA = EQ("DBL",NA),
   DBL.rg3_5 = RG("DBL",3,5),
   DBL.rgNA_5 = RG("DBL",NA,5),
   DBL.rg3_NA = RG("DBL",3,NA),
   DBL.in4.7_9.5_0.1 = IN("DBL",c(4.7,9.5,0.1)),
   DBL.in4.7_NA_0.1 = IN("DBL",c(4.7,NA,0.1)),
+  DBL.eqna = EQNA("DBL"),
   
   LGL.eqTRUE = EQ("LGL",TRUE),
+  LGL.noteqTRUE = NOT(EQ("LGL",TRUE)),
   LGL.eqNA = EQ("LGL",NA),
   LGL.rgTRUE_FALSE = RG("LGL",TRUE,FALSE),
   LGL.rgFALSE_TRUE = RG("LGL",FALSE,TRUE),
@@ -125,19 +132,23 @@ allFilterExpr <- list(
   LGL.rgFALSE_NA = RG("LGL",FALSE,NA),
   LGL.inTRUE_FALSE = IN("LGL",c(TRUE,FALSE)),
   LGL.inTRUE_NA_FALSE = IN("LGL",c(TRUE,NA,FALSE)),
+  LGL.eqna = EQNA("LGL"),
   
   CHR.eqA = EQ("CHR","A"),
+  CHR.noteqA = NOT(EQ("CHR","A")),
   CHR.eqNA = EQ("CHR",NA),
   CHR.rgB_D = RG("CHR","B","D"),
   CHR.rgNA_D = RG("CHR",NA,"D"),
   CHR.rgB_NA = RG("CHR","B",NA),
   CHR.inB_D_A = IN("CHR",c("B","D","A")),
-  CHR.inB_NA_A = IN("CHR",c("B",NA,"A"))
-  
+  CHR.inB_NA_A = IN("CHR",c("B",NA,"A")),
+  CHR.eqna = EQNA("CHR")
+    
 )
 
 allFilterExpr$and.1 <- AND(allFilterExpr$INT.eq7, allFilterExpr$CHR.rgB_D)
 allFilterExpr$or.1 <- OR(allFilterExpr$INT.eq7, allFilterExpr$DBL.eq0.1, allFilterExpr$CHR.rgB_D)
+
 
 # compare DFI.subset with normal subsetting described by filter expression toString
 for(nm in names(allFilterExpr)){
@@ -153,10 +164,13 @@ for(nm in names(allFilterExpr)){
     result1 <- DF[selection,]  
     result2 <- DFI.subset(DFIobj1,filter = fexpr)
     result2indexes <- DFI.subset(DFIobj1,filter = fexpr,return.indexes=TRUE)
+    result2indexesUnordered  <- DFI.subset(DFIobj1,filter = fexpr,return.indexes=TRUE,sort.indexes=FALSE)
     
     assert(paste("DFI.subset: ",nm,"check subset",sep=" "),identical(result1,result2))
     
     assert(paste("DFI.subset: ",nm,"check indexes",sep=" "),identical(which(selection),result2indexes))
+    
+    assert(paste("DFI.subset: ",nm,"check unordered indexes",sep=" "),setequal(result2indexes,result2indexesUnordered) && length(result2indexes) == length(result2indexesUnordered))
 }
 
 ####################################################################################
@@ -280,24 +294,29 @@ for(remapEnabled in c(FALSE,TRUE)){
 #              TEST unionIndexesList/intersectIndexesList FUNCTIONS                #
 ####################################################################################
 
-indexes1 <- list(c(7L,2L,3L),c(3L,100L,2L,8L,10L),c(10L,4L,5L,2L))
-indexes2 <- list(c(7L,2L,3L),integer(),c(10L,4L))
+indexesMergeTest <- list()
+indexesMergeTest$indexes1 <- list(c(7L,2L,3L),c(3L,100L,2L,8L,10L),c(10L,4L,5L,2L))
+indexesMergeTest$indexes2 <- list(c(7L,2L,3L),integer(),c(10L,4L))
+indexesMergeTest$indexes3 <- list(c(7L,2L,3L))
+indexesMergeTest$indexes4 <- list()
+indexesMergeTest$indexes5 <- list(integer())
 
-assert("unionIndexesList indexes1",identical(unionIndexesList(indexes1),
-                                             sort(unique(Reduce(f=union,x=indexes1)))
-))
-assert("unionIndexesList indexes2",identical(unionIndexesList(indexes1),
-                                             sort(unique(Reduce(f=union,x=indexes1)))
-))
-assert("intersectIndexesList indexes1",identical(intersectIndexesList(indexes1),
-                                             sort(unique(Reduce(f=intersect,x=indexes1)))
-))
-assert("intersectIndexesList indexes2",identical(intersectIndexesList(indexes1),
-                                             sort(unique(Reduce(f=intersect,x=indexes1)))
-))
+.unionListSorted <- function(lst){ if(length(lst) == 0) integer() else sort(unique(Reduce(f=union,x=lst))) }
+.intersectListSorted <- function(lst){ if(length(lst) == 0) integer() else sort(unique(Reduce(f=intersect,x=lst))) }
+
+for(nm in names(indexesMergeTest)){
+  toTest <- indexesMergeTest[[nm]]
+  assert( paste("unionIndexesList default",nm),     identical( unionIndexesList(toTest), .unionListSorted(toTest))  )
+  assert( paste("unionIndexesList sorted",nm),      identical( unionIndexesList(toTest,sorted=TRUE), .unionListSorted(toTest))  )
+  assert( paste("unionIndexesList unsorted",nm),    identical( sort(unionIndexesList(toTest,sorted=FALSE)), .unionListSorted(toTest))  )
+
+  assert( paste("intersectIndexesList default",nm), identical( intersectIndexesList(toTest), .intersectListSorted(toTest))  )
+  assert( paste("intersectIndexesList sorted",nm),  identical( intersectIndexesList(toTest,sorted=TRUE), .intersectListSorted(toTest))  )
+  assert( paste("intersectIndexesList unsorted",nm),identical( sort(intersectIndexesList(toTest,sorted=FALSE)), .intersectListSorted(toTest))  )
+}
 
 ####################################################################################
-#              TEST verifiable issues                                              #
+#              TEST verifiable issues                                              #    
 ####################################################################################
 
 D <- DFI(data.frame(A=1:10,B=21:30))
