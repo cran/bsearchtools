@@ -2,6 +2,17 @@
 \title{News for Package \pkg{bsearchtools}}
 \newcommand{\ghissue}{\href{https://github.com/digEmAll/bsearchtools/issues/#1}{##1}}
 
+\section{Changes in bsearchtools version 0.0.61 (2017-02-22)}{
+  \itemize{
+   
+    \item Bug Fixes :
+    \itemize{
+      \item Fixed: R \code{v3.4+} requires native symbols registration (\ghissue{9})
+    }
+   
+  }
+}
+
 \section{Changes in bsearchtools version 0.0.59 (2017-01-22)}{
   \itemize{
    
@@ -26,7 +37,7 @@
     \item Breaking Changes :
     \itemize{
       \item Standard \code{data.frame}/\code{matrix} subset and replacement operators do not work anymore on \code{DFI} objects but you need perform them on \code{DFI.unWrap(DFIobj)}.
-            This decision has been made to avoid wrong unnoticed results when \code{DFI} objects where modified. Also, the internal representation has changed and it
+            This decision has been made to avoid wrong unnoticed results when \code{DFI} objects are modified. Also, the internal representation has changed and it
             may be subjected to further changes in the future, so the users should not rely on the current structure but only use the provided functions. (\ghissue{5})
     }
     
